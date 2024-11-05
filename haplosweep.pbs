@@ -1,0 +1,41 @@
+source activate beagle
+### The genetic data is required to be phase
+
+java -Xmx32G -jar /data01/wangyf/software/beagle.06Aug24.a91.jar gt=chrB16.recode.vcf out=chrB16.phasing nthreads=8
+
+# To get .map file
+plink --vcf irtyshsouth.chrNC_056579.phasing.vcf.gz --recode --out irtyshsouth.chrNC_056579.phasing --const-fid --allow-extra-chr
+
+# To get the third column
+awk -F'\t' 'BEGIN {OFS = "\t"} { $3 = $4 * 10^(-8) * 100; print }' irtyshsouth.chrNC_056579.phasing.map >irtyshsouth.chrNC_056579.phasing.map-1
+
+# To obtain the value of uiHS, uiHSL, and uRiHS
+/data01/wangyf/software/HaploSweep/HaploSweep calc -i irtyshsouth.chrNC_056579.phasing.vcf.gz -m irtyshsouth.chrNC_056579.phasing.map-1 -o1 haplosweep.result.out
+
+# 标准化
+/data01/wangyf/software/HaploSweep/HaploSweep norm -dir haplo -t 1 -out haplo/haplosweep.result.norm.out
+
+# 筛选 第11列中，p < 0.01 的行
+awk -F'\t' '$3 && $11 {print $3 "\t" $11}' haplosweep.result.norm.out | awk -F'\t' '$2 < 0.01' > haplo.p0.01
+
+# 找落在受选择区域中的位点
+awk -F'\t' 'NR==FNR {keys[$1]; next} $4 in keys {print $1 "\t" $2 "\t" $3 "\t" $4}' haplo.p0.01 ../geneinrange.list  > haplo.p0.01.geneplot
+
+i=abtb1; grep "$i" haplo.p0.01.geneplot | awk -F'\t' '{print $1}' |sort|uniq
+
+# 绘制第 11 列 P RiHSL 的log10
+awk -F'\t' '$3 && $11 {print $3 "\t" $11}' haplosweep.result.norm.out | awk '{ $2 = -log($2) / log(10); print }' > haplo.log10.plot
+grep -v "inf" haplo.log10.plot | awk '{$1=$1; print $0}' OFS='\t' > haplo.log10.plot-1
+mv haplo.log10.plot-1 haplo.log10.plot
+# 手动改第一行为pos value
+
+setwd("E:/Rworkspace/fd")
+library(ggplot2)
+
+data <- read.delim("haplo.log10.plot", header = TRUE, sep = "\t")
+pdf("haplo-chrA08.pdf",width=10,height=5)
+ggplot(data = data, aes(x = pos, y = value, group = 1)) +
+  geom_point(size = 2) +  # 这里使用 geom_point() 来绘制散点图
+  theme(panel.background = element_rect(fill = "transparent", color = NA),
+        plot.background = element_rect(fill = "transparent", color = NA))
+dev.off()
