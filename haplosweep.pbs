@@ -1,7 +1,20 @@
 source activate beagle
-### The genetic data is required to be phase
 
-java -Xmx32G -jar /data01/wangyf/software/beagle.06Aug24.a91.jar gt=chrB16.recode.vcf out=chrB16.phasing nthreads=8
+### subgenome 
+while IFS= read -r n
+do
+  vcftools --gzvcf /data01/wangyf/project2/CyprinusCarpio/15.pop/0.vcfdata/final-raw.indel5.biSNP.QUAL30.QD3.FS20.MQ55.SOR3.MQRS-5.RPRS-5.PASS.GQ10.popmiss.maxmiss0.15.AF0.05.10-3ClusterFilter.vcf.gz --chr $n --recode --recode-INFO-all --stdout | gzip -c > $n.vcf.gz
+done < ../"select.chr"
+
+### The genetic data is required to be phase
+while IFS= read -r n
+do
+  java -Xmx32G -jar /data01/wangyf/software/beagle.06Aug24.a91.jar gt="${n}.vcf.gz" out="${n}.phasing" nthreads=8
+done < ../"select.chr"
+
+
+
+
 
 # To get .map file
 plink --vcf irtyshsouth.chrNC_056579.phasing.vcf.gz --recode --out irtyshsouth.chrNC_056579.phasing --const-fid --allow-extra-chr
