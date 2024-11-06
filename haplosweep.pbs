@@ -1,32 +1,24 @@
 source activate beagle
 
-### subgenome 
 while IFS= read -r n
 do
-  vcftools --gzvcf /data01/wangyf/project2/CyprinusCarpio/15.pop/0.vcfdata/final-raw.indel5.biSNP.QUAL30.QD3.FS20.MQ55.SOR3.MQRS-5.RPRS-5.PASS.GQ10.popmiss.maxmiss0.15.AF0.05.10-3ClusterFilter.vcf.gz --chr $n --recode --recode-INFO-all --stdout | gzip -c > $n.vcf.gz
+  vcftools --gzvcf /data01/wangyf/project2/CyprinusCarpio/15.pop/0.vcfdata/final-raw.indel5.biSNP.QUAL30.QD3.FS20.MQ55.SOR3.MQRS-5.RPRS-5.PASS.GQ10.popmiss.maxmiss0.15.AF0.05.10-3ClusterFilter.vcf.gz --chr $n --recode --recode-INFO-all --stdout | gzip -c > $n.vcf.gz   # subgenome
+  java -Xmx32G -jar /data01/wangyf/software/beagle.06Aug24.a91.jar gt="${n}.vcf.gz" o
+.ut="${n}.phasing" nthreads=8   # phasing
+  plink --vcf $n.phasing.vcf.gz --recode --out $n.phasing --const-fid --allow-extra-chr   # get .map
+  rm $n.phasing.log $n.phasing.nosex $n.phasing.ped $n.vcf.gz 
+  awk -F'\t' 'BEGIN {OFS = "\t"} { $3 = $4 * 10^(-8) * 100; print }' $n.phasing.map > $n.phasing.map-1  # get the third column 这一步在pbs里报错
+  /data01/wangyf/software/HaploSweep/HaploSweep calc -i $n.phasing.vcf.gz -m $n.phasing.map-1 -o1 haplo/$n.haplosweep.result.out -t $core  # obtain the value of uiHS, uiHSL, and uRiHS
 done < ../"select.chr"
+rm *.phasing.map
 
-### The genetic data is required to be phase
+# standardizing                                                                        
+mkdir haplo && mv *.haplosweep.result.out haplo/
 while IFS= read -r n
 do
-  java -Xmx32G -jar /data01/wangyf/software/beagle.06Aug24.a91.jar gt="${n}.vcf.gz" out="${n}.phasing" nthreads=8
+  /data01/wangyf/software/HaploSweep/HaploSweep norm -dir haplo -t $core -out haplo/$n.haplosweep.result.norm.out
 done < ../"select.chr"
 
-
-
-
-
-# To get .map file
-plink --vcf irtyshsouth.chrNC_056579.phasing.vcf.gz --recode --out irtyshsouth.chrNC_056579.phasing --const-fid --allow-extra-chr
-
-# To get the third column
-awk -F'\t' 'BEGIN {OFS = "\t"} { $3 = $4 * 10^(-8) * 100; print }' irtyshsouth.chrNC_056579.phasing.map >irtyshsouth.chrNC_056579.phasing.map-1
-
-# To obtain the value of uiHS, uiHSL, and uRiHS
-/data01/wangyf/software/HaploSweep/HaploSweep calc -i irtyshsouth.chrNC_056579.phasing.vcf.gz -m irtyshsouth.chrNC_056579.phasing.map-1 -o1 haplosweep.result.out
-
-# 标准化
-/data01/wangyf/software/HaploSweep/HaploSweep norm -dir haplo -t 1 -out haplo/haplosweep.result.norm.out
 
 # 筛选 第11列中，p < 0.01 的行
 awk -F'\t' '$3 && $11 {print $3 "\t" $11}' haplosweep.result.norm.out | awk -F'\t' '$2 < 0.01' > haplo.p0.01
