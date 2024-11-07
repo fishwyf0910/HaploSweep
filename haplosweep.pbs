@@ -3,8 +3,7 @@ source activate beagle
 while IFS= read -r n
 do
   vcftools --gzvcf /data01/wangyf/project2/CyprinusCarpio/15.pop/0.vcfdata/final-raw.indel5.biSNP.QUAL30.QD3.FS20.MQ55.SOR3.MQRS-5.RPRS-5.PASS.GQ10.popmiss.maxmiss0.15.AF0.05.10-3ClusterFilter.vcf.gz --chr $n --recode --recode-INFO-all --stdout | gzip -c > $n.vcf.gz   # subgenome
-  java -Xmx32G -jar /data01/wangyf/software/beagle.06Aug24.a91.jar gt="${n}.vcf.gz" o
-.ut="${n}.phasing" nthreads=8   # phasing
+  java -Xmx32G -jar /data01/wangyf/software/beagle.06Aug24.a91.jar gt="${n}.vcf.gz" out="${n}.phasing" nthreads=8   # phasing
   plink --vcf $n.phasing.vcf.gz --recode --out $n.phasing --const-fid --allow-extra-chr   # get .map
   rm $n.phasing.log $n.phasing.nosex $n.phasing.ped $n.vcf.gz 
   awk -F'\t' 'BEGIN {OFS = "\t"} { $3 = $4 * 10^(-8) * 100; print }' $n.phasing.map > $n.phasing.map-1  # get the third column 这一步在pbs里报错
